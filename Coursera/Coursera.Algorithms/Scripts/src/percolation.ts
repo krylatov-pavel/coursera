@@ -3,6 +3,11 @@
     y: number
 }
 
+interface Cell {
+    row: number,
+    col: number
+}
+
 class Visualiser {
     private n: number;
     private cellSize: number;
@@ -73,20 +78,115 @@ class ModelRandomizer {
     }
 }
 
-$(document).ready(function () {
-    let size: number = 20;
-    let visualizer: Visualiser = new Visualiser(size, 100);
-    let model: ModelRandomizer = new ModelRandomizer(size);
+interface UF {
+    connected(a: number, b: number): boolean;
+    connect(a: number, b: number): void;
+}
 
-    let openCell = function (): void {
-        if (model.hasClosedCells()) {
-            visualizer.open(model.next());
-            setTimeout(openCell, 10);
-        }
-        else {
-            console.log("all cells are opened");
+class WeightedQuickUnionUF implements UF {
+    public count: number;
+    private nodes: number[];
+    private sizes: number[];
+
+    constructor(count: number) {
+        this.count = count;
+        this.nodes = Array(count).fill(0).map(function (e, i) { return i });
+        this.sizes = Array(count).fill(1);
+    }
+
+    connected(a: number, b: number): boolean {
+        let rootA = this.root(a);
+        let rootB = this.root(b);
+
+        return rootA == rootB;
+    }
+
+    connect(a: number, b: number): void {
+        let rootA = this.root(a);
+        let rootB = this.root(b);
+
+        if (rootA == rootB) return;
+
+        if (this.sizes[rootA] > this.sizes[rootB]) {
+            this.nodes[rootB] = rootA;
+            this.sizes[rootA] += this.sizes[rootB];
+        } else {
+            this.nodes[rootA] = rootB;
+            this.sizes[rootB] += this.sizes[rootA];
         }
     }
 
-    openCell();
+    private root(node: number): number {
+        if (this.nodes[node] !== node) {
+            return this.root(this.nodes[node]);
+        } else {
+            return node;
+        }
+    }
+}
+
+class Percolation {
+    private n: number;
+    private grid: boolean[][];
+    private model: UF;
+    private startIndex: number;
+    private endIndex: number;
+
+    constructor(n: number) {
+        this.n = n;
+        this.grid = Array(n).fill(Array(n).fill(false));
+        this.model = new WeightedQuickUnionUF(n * n + 2); //add 2 virtual nodes
+        this.startIndex = n * n;
+        this.endIndex = this.startIndex + 1;
+        for (let i = 0; i < n; i++) {
+            this.model.connect(this.startIndex, i);
+            this.model.connect(this.endIndex, n * (n - 1) + i);
+        }
+    }
+
+    public open(row: number, col: number): void {
+        this.grid[row][col] = true;
+
+        let indexA: number = this.getIndex(row, col);
+
+        //connect 
+    }
+
+    //public boolean isOpen(int row, int col)  // is site (row, col) open?
+    //public boolean isFull(int row, int col)  // is site (row, col) full?
+    //public int numberOfOpenSites()       // number of open sites
+    //public boolean percolates()              // does the system percolate?
+
+    private getIndex(row: number, col: number) {
+        return row * this.n + col;
+    }
+
+    private getNeighbours(row: number, col: number): Cell[] {
+        let neighbours: Cell[];
+
+        if (row > 1) neighbours.push({ row: row - 1, col: col });
+        if (row < this.n - 1) neighbours.push({ row: row + 1, col: col });
+        if (col > 1) neighbours.push({ row: row, col: col - 1 });
+        if (col < this.n - 1) neighbours.push({ row: row, col: col + 1 });
+
+        return neighbours;
+    }
+}
+
+$(document).ready(function () {
+    //let size: number = 50;
+    //let visualizer: Visualiser = new Visualiser(size, 500);
+    //let model: ModelRandomizer = new ModelRandomizer(size);
+
+    //let openCell = function (): void {
+    //    if (model.hasClosedCells()) {
+    //        visualizer.open(model.next());
+    //        setTimeout(openCell, 10);
+    //    }
+    //    else {
+    //        console.log("all cells are opened");
+    //    }
+    //}
+
+    //openCell();
 });

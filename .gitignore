@@ -243,3 +243,5 @@ MobiSave.Database/visual studio 2015/settings/CurrentSettings.vssettings
 
 **/App_Data/Elmah
 **/*.jfm
+
+**/Scripts/dist

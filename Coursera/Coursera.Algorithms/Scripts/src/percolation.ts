@@ -1,9 +1,4 @@
-﻿interface Point {
-    x: number,
-    y: number
-}
-
-interface Cell {
+﻿interface Cell {
     row: number,
     col: number
 }
@@ -32,13 +27,8 @@ class Visualiser {
         this.context.fillStyle = "grey";
     }
 
-    open(cell: number) {
-        let point = {
-            x: cell % this.n,
-            y: Math.floor(cell / this.n)
-        };
-
-        this.context.fillRect(point.x * this.cellSize, point.y * this.cellSize, this.cellSize, this.cellSize)
+    open(cell: Cell) {
+        this.context.fillRect(cell.col * this.cellSize, cell.row * this.cellSize, this.cellSize, this.cellSize)
     }
 
     fill(cells: number[]) {
@@ -72,9 +62,14 @@ class ModelRandomizer {
         return this.openCells < this.count;
     }
 
-    next(): number {
+    next(): Cell {
         this.openCells++;
-        return this.cells[this.openCells - 1];
+        let cellIndex: number = this.cells[this.openCells - 1];
+
+        return {
+            row: Math.floor(cellIndex / this.n),
+            col: cellIndex % this.n
+        }
     }
 }
 
@@ -127,6 +122,7 @@ class WeightedQuickUnionUF implements UF {
 
 class Percolation {
     private n: number;
+    public openCells: number = 0;
     private grid: boolean[][];
     private model: UF;
     private startIndex: number;
@@ -134,7 +130,7 @@ class Percolation {
 
     constructor(n: number) {
         this.n = n;
-        this.grid = Array(n).fill(Array(n).fill(false));
+        this.grid = Array.apply(null, new Array(n)).map(function () { return Array(n).fill(false); });
         this.model = new WeightedQuickUnionUF(n * n + 2); //add 2 virtual nodes
         this.startIndex = n * n;
         this.endIndex = this.startIndex + 1;
@@ -145,24 +141,41 @@ class Percolation {
     }
 
     public open(row: number, col: number): void {
+        if (this.grid[row][col]) return;
+
         this.grid[row][col] = true;
+        this.openCells++;
 
-        let indexA: number = this.getIndex(row, col);
+        let cellIndex: number = this.getIndex(row, col);
+        let neighbours: Cell[] = this.getNeighbours(row, col);
 
-        //connect 
+        for (let neighbour of neighbours) {
+            if (this.grid[neighbour.row][neighbour.col]) {
+                let neighbourIndex: number = this.getIndex(neighbour.row, neighbour.col);
+                this.model.connect(cellIndex, neighbourIndex);
+            }
+        }
     }
 
-    //public boolean isOpen(int row, int col)  // is site (row, col) open?
-    //public boolean isFull(int row, int col)  // is site (row, col) full?
-    //public int numberOfOpenSites()       // number of open sites
-    //public boolean percolates()              // does the system percolate?
+    public isOpen(row: number, col: number): boolean {
+        return this.grid[row][col];
+    }
+
+    public isFull(row: number, col: number): boolean {
+        let cellIndex: number = this.getIndex(row, col);
+        return this.model.connected(this.startIndex, cellIndex);
+    }
+
+    public percolates(): boolean {
+        return this.model.connected(this.startIndex, this.endIndex);
+    }
 
     private getIndex(row: number, col: number) {
         return row * this.n + col;
     }
 
     private getNeighbours(row: number, col: number): Cell[] {
-        let neighbours: Cell[];
+        let neighbours: Cell[] = [];
 
         if (row > 1) neighbours.push({ row: row - 1, col: col });
         if (row < this.n - 1) neighbours.push({ row: row + 1, col: col });
@@ -174,19 +187,27 @@ class Percolation {
 }
 
 $(document).ready(function () {
-    //let size: number = 50;
-    //let visualizer: Visualiser = new Visualiser(size, 500);
-    //let model: ModelRandomizer = new ModelRandomizer(size);
+    let size: number = 250;
+    let visualizer: Visualiser = new Visualiser(size, 500);
+    let randomizer: ModelRandomizer = new ModelRandomizer(size);
+    let percolation: Percolation = new Percolation(size);
 
-    //let openCell = function (): void {
-    //    if (model.hasClosedCells()) {
-    //        visualizer.open(model.next());
-    //        setTimeout(openCell, 10);
-    //    }
-    //    else {
-    //        console.log("all cells are opened");
-    //    }
-    //}
+    let openCell = function (): void {
+        if (randomizer.hasClosedCells()) {
+            let cell: Cell = randomizer.next();
+            visualizer.open(cell);
+            percolation.open(cell.row, cell.col);
+            if (percolation.percolates()) {
+                console.log("system percolates!");
+                console.log(`treeshold: ${percolation.openCells / (size * size)}`)
+            } else {
+                setTimeout(openCell, 0);
+            }
+        }
+        else {
+            console.log("all cells are opened");
+        }
+    }
 
-    //openCell();
+    openCell();
 });
